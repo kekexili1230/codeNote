@@ -1,0 +1,237 @@
+# vxlan学习笔记
+
+## vxlan静态配置
+
+### vxlan2层转发的静态配置
+
+![vxlan静态配置](./pictures/vxlan/vxlan静态配置.png)
+
+#### 问题1
+
+vm1, vm2, vm3在一个局域网中，接入设备分别为vtep:1.1.1.1, vtep:2.2.2.2, vtep:3.3.3.3, 三者通过网关vtep:4.4.4.4访问外网，
+能否只建立vtep:1.1.1.1和vtep:4.4.4.4之间的vxlan隧道？
+
+#### 注释1
+interface nve 1就是此设备的VTEP，通常情况下一台设备指定一个interface nve, 源IP通常使用loopback IP，然后指定vni对端的vtep地址
+
+#### vxlan2层转发模型
+
+
+
+### vxlan3层转发的静态配置
+
+#### 
+
+
+
+### EVPN 
+
+#### Overlay网络类型
+
+Overlay网络类型按照边缘设备分：网络overlay，主机overlay，混合式overlay
+
+- 网络overlay：路由器或交换机作为overlay网络的边缘设备
+
+- 主机overlay：虚拟设备作为overlay网络的边缘设备
+
+- 混合overlay：物理设备、虚拟设备作为overlay网络的边缘设备
+
+#### VXLAN网关
+
+vxlan二层网关：完成vxlan到vlan的转换
+vxlan三层网关：支持跨vxlan三层转发
+
+##### VXLAN三层网关
+
+
+### VPN
+
+#### vxlan网络中的RD、RT是什么？
+
+[vxlan网络中的RD、RT是什么？]: https://support.huawei.com/enterprise/zh/doc/EDOC1100168647/
+
+#### VPN实例
+
+VPN实例即为VPN路由转发表VRF。不同VPN之间的路由隔离通过VRF实现
+
+#### RD和RT
+
+RD（router distinguisher）用于区分使用相同地址空间的IPV4前缀，长度8个字节，前两个字节type字段表示RD类型，例如tpye=0时，16位自治系统号：32位用户自定义数字
+
+VPN-IPV4: 使用RD-IPv4构成
+
+
+
+### EVPN配置
+
+#### L2vpn 配置
+l2vpn enable
+vxlan tunnel mac-learning disable
+vxlan tunnel arp-learning disable
+
+#### bgp 配置
+bgp 100
+peer 1.1.1.1 as-number 100
+peer 1.1.1.1 connect-interface loopback0
+
+address-family l2vpn evpn
+peer 1.1.1.1 enable
+
+
+#### 创建租户
+
+####创建vpn-instance
+ip vpn-instance tenanta
+route-distinguisher 1:1
+
+####配置IPv4的rt
+address-family ipv4
+vpn-target 2:2 import-extcommunity
+vpn-target 2:2 export-extcommunity
+
+####配置evpn RT                                               
+address-family evpn
+vpn-target 1:1 import-extcommunity
+vpn-target 1:1 export-extcommunity
+
+
+\##创建vsi
+\#创建vsi，并进入vsi视图。
+`vsi vpna`
+vsi是提供二层服务的虚拟交换实例，它具有传统以太网交换机的所有功能，包括MAC地址学习、老化、泛洪。
+
+
+
+
+\# arp代理模式
+arp suppression enable
+
+\# 创建vxlan，并进入vxlan视图
+`vxlan 10`
+vxlan vxlan-id 一个vsi下只能创建一个vxlan。不同的vsi下创建的vxlan，vxlan-id不能相同。二层vni用来标识子网
+
+\# 创建EVPN实例，并进入EVPN实例视图
+evpn encapsulation vxlan
+
+\# 配置EVPN实例的RD
+route-distinguisher auto 1:10
+
+\# 配置EVPN的Route target属性 auto表示自动生成RT “BGP AS：VXLAN ID” 100:10
+vpn-target auto export-extcommunity 
+vpn-target auto import-extcommunity 
+
+vsi vpnb
+arp suppression enable
+vxlan 20  
+evpn encapsulation vxlan
+route-distinguisher auto 1:10
+vpn-target auto export-extcommunity AS:VNI 100:10
+vpn-target auto import-extcommunity AS:VNI 100:10
+
+####配置VSI L2VNI网关
+`interface vsi-interface 1`
+interface vsi-interface vsi-interface-id 创建vsi虚接口或者vsi子接口
+
+`ip binding vpn-instance tenanta`
+ip binding vpn-instance命令用来配置接口和指定vpn实例关联。本命令用户在PE设备上将CE的接口与该CE所属的VPN实例关联。
+`ip address 10.1.1.1 255.255.255.0`
+该命令用来配置接口的IP地址。每一个接口可以配置多个IP地址，其中一个为主IP，其余为从IP，这样可以实现一个接口下的多个子网之间能够通信。同一个接口的主、从IP地址可以在一个网段，但是不同接口之间、主接口和子接口之间，同一个主接口下不同子接口之间的IP地址不可以在同一个网段。
+
+在网关设备上多个vxlan可以共用一个vsi虚接口，此时网关设备无法判断从vsi虚接口接收到的报文属于哪一个vxlan。为了解决该问题，需要在vsi视图下制定vsi所属于的子网网段，通过子网网段判断报文所属的vsi。
+`vis vsi-name`
+`gateway subnet ipv4-address wildcard-mask`
+
+`mac-address 0001-0001-0001`
+`distributed-gateway local`
+
+\# 创建vsi虚接口，并进入vsi虚接口视图
+interface vsi-interface 2
+
+\# associate an interface with a VPN instance. An interface is associated with no VPN instance; it belongs to the public.
+ip binding vpn-instance tenanta
+
+\#配置vsi虚接口IP地址
+ip address 10.1.2.1 255.255.255.0
+
+\# assign a mac address to the vsi interface
+mac-address 0002-0002-0002
+
+distributed-gateway local
+
+\#进入vxlan所在vsi视图
+vsi vpna
+
+\#为vsi指定网关接口
+`gateway vsi-interface 1`
+为vsi指定网关接口，一个vsi只能指定一个网关接口。
+
+vsi vpnb
+gateway vsi-interface 2
+
+
+vsi vpna
+gateway vsi-interface 1
+
+vis vpnb
+gateway vsi-interface 2
+
+
+####创建l3vni
+interface vsi-interface3
+ip binding vpn-instance tenanta
+
+\# 用来配置l3-vni
+`l3-vni 1000`
+分布式网关中，需要在网关上配置L3VNI。在网关之间通过vxlan隧道转发流量，属于同一路由域，能够进行三层互通的流量通过L3VNI表示。转发某一个vpn的三层流量时，需要在与该vpn实例关联的vsi虚接口视图下执行本命令。三层vni用来标识租户
+在vxlan三层转发的时候有两种方式：非对称IRB和对称IRB。在非对称IRB转发过程中，使用l2VNI作为网关出接口；在对称IRB中，使用L3VNI作为出接口。出接口不同导致报文封装中的VNI和MAC地址不同
+
+
+
+####配置vap
+
+interface GE1/0/10
+
+\# change the link mode of an Ethernet interface. bridge 表示layer 2 mode
+port link-mode bridge
+
+description To-CVK
+
+\# change the link type
+port link-type trunk
+
+\# assign a trunk port to the specified vlans: port trunk permit vlan { vlan-id-list }
+`port trunk permit vlan 1 100 200`
+
+\# for the controller to manage a site-facing interface, you must specify the interface as a vtep access port. By default, an interface is not a vtep access port
+vtep access port
+
+\# create a service instance on the current interface and enter service instance view
+service-instance 100
+
+\# 配置外层vlan标签为100
+encapsulation s-vid 100
+
+\# 配置服务实例和vsi实例vpna关联
+xconnect vsi vpna
+
+service-instance 200
+encapsulation s-vid 200
+xconnect vsi vpnb
+
+
+#### 免费ARP
+
+免费ARP报文是一种特殊的ARP报文，该报文中携带的发送端IP地址和目标IP地址都是本机IP地址。设备通过对外发送免费ARP报文来确定其他设备的IP地址是否与本机IP地址冲突，并实现在设备硬件地址改变时通知其他设备更新ARP表项。
+
+    - IP地址冲突检测（发送免费ARP报文）
+    当设备接口配置IP地址时，可以在接口所在局域网中广播发送免费ARP报文。如果设备收到ARP应答报文，表示局域网中存在与该设备IP地址相同的设备；如果没有收到ARP应答报文，表示局域网中不存在与该设备IP地址相同的设备。
+
+    - 免费ARP报文学习（接受免费ARP报文）
+    当设备收到免费ARP报文中携带的信息时，判断自身ARP表中是否存在与此免费ARP报文中发送端IP对应的ARP表项
+        - 如果存在，使用免费ARP报文中携带的信息更新对应的ARP表项
+        - 如果不存在，根据免费ARP报文中携带的信息更新ARP表项
+
+免费ARP用于通知设备自身的ARP，ARP广播请求报文用于获知对方的ARP信息。 
+
+
+

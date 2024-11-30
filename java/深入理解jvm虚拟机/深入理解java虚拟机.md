@@ -635,7 +635,7 @@ store操作用于将数据从操作数栈存储到局部变量表：istore，lst
 
 2. 类什么时候开始初始化的？
 
-    - 遇到n ew，getstatic，putstatic，invokestatic这四条字节码指令的时候。
+    - 遇到new，getstatic，putstatic，invokestatic这四条字节码指令的时候。
 
         - 使用new关键字实例化对象的时候
 
@@ -719,7 +719,8 @@ store操作用于将数据从操作数栈存储到局部变量表：istore，lst
 
 ### 准备阶段
 
-    将对象实例初始化为零值
+    准备阶段是正式为类中定义的变量（即静态变量， 被static修饰的变量） 分配内存并设置类变量初
+    始值的阶段，
 
 ### 解析阶段
 

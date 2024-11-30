@@ -229,7 +229,7 @@ kubect label pod pod_name label_key=label_value --overwrite
     - 服务中定义了pod选择器，选择器用来构建IP和端口列表，然后存储在Endpoint资源中。
 
     - 作为客户端，连接外部服务：创建ExternalName类型的服务，配置如下所示
-        
+      
         ```yaml
         apiVersion: v1
         kind: Service
@@ -260,7 +260,7 @@ kubect label pod pod_name label_key=label_value --overwrite
             ```
 
         - 将服务的类型设置成LoadBalance：负载均衡器拥有公开可访问的IP地址，将所有连接重定向到服务，有云服务商提供。
-            
+          
             ```yaml
             apiVersion: v1
             kind: Service
@@ -332,11 +332,14 @@ kubect label pod pod_name label_key=label_value --overwrite
 
 1. 为什么引入卷？
 
-- 每一个容器都有自己独立的文件系统，容器重启后，写入文件系统的数据丢失
+    - 每一个容器都有自己独立的文件系统，容器重启后，写入文件系统的数据丢失
 
-- 希望在容器启动后，能够利用之前写入文件系统的数据
 
-- 一个pod中的所有容器都可以使用卷
+    - 希望在容器启动后，能够利用之前写入文件系统的数据
+
+
+    - 一个pod中的所有容器都可以使用卷
+
 
 2. emptyDir卷
 
@@ -355,14 +358,14 @@ kubect label pod pod_name label_key=label_value --overwrite
         volumeMounts:
         - name: shared-volume
         mountPath: /path-for-container-1
-
+    
     - name: container-2
         image: busybox
         command: ["/bin/sh", "-c", "while true; do cat /path-for-container-2/data.txt; sleep 10; done"]
         volumeMounts:
         - name: shared-volume
         mountPath: /path-for-container-2
-
+    
     volumes:
     - name: shared-volume
         emptyDir: {}
@@ -497,7 +500,7 @@ metadata:
 
 
 
-            
+​            
 
 
 
